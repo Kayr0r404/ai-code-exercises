@@ -1,0 +1,294 @@
+openapi: 3.0.3
+info:
+  title: Products API
+  description: |
+    API for retrieving product information. Supports filtering by category,
+    price range, and stock availability, as well as sorting and pagination.
+  version: 1.0.0
+  contact:
+    name: API Support
+    url: https://api.example.com/support
+
+servers:
+  - url: https://api.example.com
+    description: Production server
+  - url: https://staging.api.example.com
+    description: Staging server
+
+paths:
+  /api/products:
+    get:
+      summary: List products
+      description: |
+        Get a paginated list of products with flexible filtering,
+        sorting, and pagination options. Returns products matching
+        the specified criteria along with pagination metadata.
+      operationId: listProducts
+      tags:
+        - Products
+      parameters:
+        - name: category
+          in: query
+          description: Filter by product category
+          schema:
+            type: string
+          example: electronics
+        - name: minPrice
+          in: query
+          description: Minimum price filter (inclusive)
+          schema:
+            type: number
+            format: float
+            minimum: 0
+          example: 20
+        - name: maxPrice
+          in: query
+          description: Maximum price filter (inclusive)
+          schema:
+            type: number
+            format: float
+            minimum: 0
+          example: 100
+        - name: sort
+          in: query
+          description: Field to sort results by
+          schema:
+            type: string
+            default: createdAt
+            enum:
+              - createdAt
+              - price
+              - name
+          example: price
+        - name: order
+          in: query
+          description: Sort direction
+          schema:
+            type: string
+            default: desc
+            enum:
+              - asc
+              - desc
+          example: asc
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 10
+        - name: inStock
+          in: query
+          description: When true, only return products with stockQuantity > 0
+          schema:
+            type: boolean
+          example: true
+      responses:
+        "200":
+          description: Successful operation — list of products with pagination metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    description: Array of product objects matching the filter criteria
+                    items:
+                      $ref: "#/components/schemas/Product"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+              example:
+                products:
+                  - _id: 61fa9bcf5c130b2e6d675432
+                    name: Wireless Headphones
+                    description: High-quality wireless headphones with noise cancellation
+                    price: 89.99
+                    category: electronics
+                    stockQuantity: 45
+                    createdAt: "2023-02-01T15:32:47.000Z"
+                    updatedAt: "2023-03-15T09:21:08.000Z"
+                pagination:
+                  total: 42
+                  page: 1
+                  limit: 20
+                  pages: 3
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/products/{productId}:
+    get:
+      summary: Get product by ID
+      description: Retrieve a single product by its MongoDB ObjectId
+      operationId: getProductById
+      tags:
+        - Products
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          description: MongoDB ObjectId of the product
+          schema:
+            type: string
+            pattern: "^[a-fA-F0-9]{24}$"
+          example: 61fa9bcf5c130b2e6d675432
+      responses:
+        "200":
+          description: Product object matching the provided ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+              example:
+                _id: 61fa9bcf5c130b2e6d675432
+                name: Wireless Headphones
+                description: High-quality wireless headphones with noise cancellation
+                price: 89.99
+                category: electronics
+                stockQuantity: 45
+                createdAt: "2023-02-01T15:32:47.000Z"
+                updatedAt: "2023-03-15T09:21:08.000Z"
+        "400":
+          $ref: "#/components/responses/InvalidId"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+components:
+  schemas:
+    Product:
+      type: object
+      description: A product in the catalog
+      properties:
+        _id:
+          type: string
+          description: MongoDB ObjectId identifier
+          pattern: "^[a-fA-F0-9]{24}$"
+          example: 61fa9bcf5c130b2e6d675432
+        name:
+          type: string
+          description: Product display name
+          example: Wireless Headphones
+        description:
+          type: string
+          description: Detailed product description
+          example: High-quality wireless headphones with noise cancellation
+        price:
+          type: number
+          format: float
+          description: Product price in USD
+          minimum: 0
+          example: 89.99
+        category:
+          type: string
+          description: Product category slug
+          example: electronics
+        stockQuantity:
+          type: integer
+          description: Current available stock count
+          minimum: 0
+          example: 45
+        createdAt:
+          type: string
+          format: date-time
+          description: Product creation timestamp (ISO 8601 UTC)
+          example: "2023-02-01T15:32:47.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Product last-update timestamp (ISO 8601 UTC)
+          example: "2023-03-15T09:21:08.000Z"
+      required:
+        - _id
+        - name
+        - price
+        - category
+        - stockQuantity
+
+    Pagination:
+      type: object
+      description: Pagination metadata for list responses
+      properties:
+        total:
+          type: integer
+          description: Total number of items matching the filter criteria
+          minimum: 0
+          example: 42
+        page:
+          type: integer
+          description: Current page number
+          minimum: 1
+          example: 1
+        limit:
+          type: integer
+          description: Maximum number of items per page
+          minimum: 1
+          example: 20
+        pages:
+          type: integer
+          description: Total number of pages available
+          minimum: 0
+          example: 3
+      required:
+        - total
+        - page
+        - limit
+        - pages
+
+    Error:
+      type: object
+      description: Standard error response body
+      properties:
+        error:
+          type: string
+          description: Short error type identifier
+          example: Server error
+        message:
+          type: string
+          description: Human-readable error description
+          example: Failed to fetch products
+      required:
+        - error
+        - message
+
+  responses:
+    InvalidId:
+      description: The provided ID format is invalid
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: Invalid ID
+            message: Invalid product ID format
+
+    NotFound:
+      description: The requested resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: Not found
+            message: Product not found
+
+    ServerError:
+      description: An unexpected server error occurred
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: Server error
+            message: Failed to fetch products
