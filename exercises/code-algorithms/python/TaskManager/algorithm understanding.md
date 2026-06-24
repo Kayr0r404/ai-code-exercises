@@ -88,33 +88,33 @@ The code uses two yes/no flags:
 
 ## What I Learned
 
-### The Merge Is Not the Sync
+### Figuring Out What to Change Is Different From Actually Changing It
 
-The code only figures out what should change. It doesn't actually send anything anywhere. That part is someone else's job.
+So I thought the code would like... send stuff to the other computer. But no. It just makes a list of what should be different. Something else has to do the actual moving. Kind of like writing a grocery list but not actually going to the store.
 
-### Different Parts Use Different Rules
+### Not Everything Uses the Same Rule
 
-* Normal text stuff uses timestamps (newest wins).
-* Whether something is done uses the "done is done" rule.
-* Tags just get added together.
+* Normal stuff like the task name just looks at what time it was last changed and picks the newest one.
+* But if something is marked done, that always wins. Even if the other one was changed later. Because done is done.
+* Tags are like stickers and they just pile up together from both sides.
 
-### Copying Prevents Accidents
+### Making a Copy First Is Smart
 
-The code makes a copy of the task before changing it. This stops it from accidentally messing up the original data.
+The code copies the task before it does anything to it. That way if something goes wrong, the original is still fine. Like photocopying a document before you start scribbling on it.
 
-### Real Life Rules Matter More Than Tech Rules
+### How People Think Matters More Than Dates
 
-The "done is done" rule shows that what makes sense to a person is more important than just picking whatever has the newest date.
+I thought computers just look at numbers and pick the biggest one. But the "done is done" rule is different. It cares about what makes sense to a person. You wouldn't want a task you already finished to pop back up just because you changed something on your phone. So sometimes the rule is about logic, not just dates.
 
-## What's Missing
+## Stuff It Can't Do Yet
 
-The code doesn't deal with:
+The code is missing some things:
 
-* Tasks that were deleted (they just hang around)
-* Comparing more than two versions at once
-* Undoing things if the sync fails partway through
-* Tracking changes per field (it just looks at the whole task)
+* If you delete a task, it doesn't really know what to do. The task just kind of stays there.
+* It can only work with two lists at a time. Not three or more.
+* If something goes wrong halfway through, there's no undo button.
+* It looks at the whole task at once. It can't say "well the title is better from this side but the due date is better from that side."
 
-## Summary
+## My Summary
 
-This code takes two task lists, combines them, figures out conflicts, and says what needs updating. The main ideas are: newest wins unless something is done (then done wins), tags get combined, and flags track which side needs updating.
+So basically this thing takes two lists of jobs, puts them together, and when the same job is in both lists it has to decide which one to keep. The rules are: newest wins for most stuff, but done beats not done, and tags just get mixed together. Then it makes little flags saying what needs to be updated on each side. Someone else has to actually do the updating though. That's not this code's job.

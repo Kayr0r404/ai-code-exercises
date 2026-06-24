@@ -3,11 +3,10 @@ function renderUserList(users) {
   const userListElement = document.getElementById('user-list');
   userListElement.innerHTML = '';
 
-  // Loop through users, up to a maximum of 5
-  for (let i = 0; i < 5; i++) {
+  // Loop through users
+  for (let i = 0; i < users.length; i++) {
     const user = users[i];
 
-    // Now safe because we only process existing users
     const userName = user.name;
     const userEmail = user.email;
 

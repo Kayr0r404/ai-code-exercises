@@ -15,8 +15,8 @@ console.log(`Database connection: ${process.env.DB_USER || 'app_user'}@${process
 
 async function getCustomerOrderDetails(customerId, startDate, endDate) {
   try {
-    // Query to get all order details for a customer
-    const result = await pool.query(`
+    // Use individual queries for better performance - avoids correlated subqueries
+    const ordersResult = await pool.query(`
       SELECT
         o.order_id,
         o.order_date,
@@ -24,35 +24,6 @@ async function getCustomerOrderDetails(customerId, startDate, endDate) {
         o.status,
         c.customer_name,
         c.email,
-        (
-          SELECT json_agg(
-            json_build_object(
-              'product_id', p.product_id,
-              'product_name', p.name,
-              'quantity', oi.quantity,
-              'unit_price', p.price,
-              'subtotal', (oi.quantity * p.price)
-            )
-          )
-          FROM order_items oi
-          JOIN products p ON oi.product_id = p.product_id
-          WHERE oi.order_id = o.order_id
-        ) as items,
-        (
-          SELECT 
-            array_to_json(
-              array_agg(
-                json_build_object(
-                  'status', s.status,
-                  'date', s.status_date,
-                  'notes', s.notes
-                )
-                ORDER BY s.status_date DESC
-              )
-            )
-          FROM order_status_history s
-          WHERE s.order_id = o.order_id
-        ) as status_history,
         a.street,
         a.city,
         a.state,
@@ -66,7 +37,56 @@ async function getCustomerOrderDetails(customerId, startDate, endDate) {
       ORDER BY o.order_date DESC
     `, [customerId, startDate, endDate]);
 
-    return result.rows;
+    const rows = ordersResult.rows;
+    if (rows.length === 0) return rows;
+
+    const orderIds = rows.map(r => r.order_id);
+
+    const [itemsResult, historyResult] = await Promise.all([
+      pool.query(`
+        SELECT
+          oi.order_id,
+          json_agg(
+            json_build_object(
+              'product_id', p.product_id,
+              'product_name', p.name,
+              'quantity', oi.quantity,
+              'unit_price', p.price,
+              'subtotal', (oi.quantity * p.price)
+            )
+          ) as items
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.product_id
+        WHERE oi.order_id = ANY($1)
+        GROUP BY oi.order_id
+      `, [orderIds]),
+      pool.query(`
+        SELECT
+          s.order_id,
+          array_to_json(
+            array_agg(
+              json_build_object(
+                'status', s.status,
+                'date', s.status_date,
+                'notes', s.notes
+              )
+              ORDER BY s.status_date DESC
+            )
+          ) as status_history
+        FROM order_status_history s
+        WHERE s.order_id = ANY($1)
+        GROUP BY s.order_id
+      `, [orderIds])
+    ]);
+
+    const itemsMap = new Map(itemsResult.rows.map(r => [r.order_id, r.items]));
+    const historyMap = new Map(historyResult.rows.map(r => [r.order_id, r.status_history]));
+
+    return rows.map(row => ({
+      ...row,
+      items: itemsMap.get(row.order_id) || [],
+      status_history: historyMap.get(row.order_id) || []
+    }));
   } catch (err) {
     console.error('Database query error:', err);
     throw err;
